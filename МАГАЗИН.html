@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WAVESHOP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+  /* ═══════════════════════════════════════════════════════════════
+     RESET & CSS VARIABLES
+  ═══════════════════════════════════════════════════════════════ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #111118;
+    --card:      #16161f;
+    --border:    #25253a;
+    --neon:      #7c3aed;
+    --neon-glow: #a855f7;
+    --cyan:      #06b6d4;
+    --green:     #22c55e;
+    --red:       #ef4444;
+    --text:      #e2e2f0;
+    --muted:     #7a7a9a;
+    --white:     #ffffff;
+    --radius:    16px;
+    --font-d:    'Space Grotesk', sans-serif;
+    --font-b:    'Inter', sans-serif;
+    --trans:     0.35s cubic-bezier(.4,0,.2,1);
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-b);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 3px; }
+
+  /* noise grain overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: .4;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     PAGE VISIBILITY — JS toggles these
+  ═══════════════════════════════════════════════════════════════ */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     SHARED: HEADER
+  ═══════════════════════════════════════════════════════════════ */
+  .site-header {
+    position: sticky; top: 0; z-index: 200;
+    background: rgba(10,10,15,.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 5vw;
+  }
+  .header-inner {
+    max-width: 1400px; margin: auto;
+    display: flex; align-items: center; gap: 20px;
+    height: 68px;
+  }
+  .logo {
+    font-family: var(--font-d); font-weight: 700; font-size: 1.45rem;
+    letter-spacing: -.02em; text-decoration: none; cursor: pointer;
+    display: flex; align-items: center; gap: 2px; flex-shrink: 0;
+  }
+  .logo-wave {
+    background: linear-gradient(135deg, var(--neon), var(--cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .search-wrap {
+    flex: 1; max-width: 460px; position: relative;
+  }
+  .search-wrap svg {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); pointer-events: none;
+  }
+  #searchInput {
+    width: 100%; background: var(--card);
+    border: 1px solid var(--border); border-radius: 100px;
+    padding: 10px 16px 10px 42px;
+    color: var(--text); font-family: var(--font-b); font-size: .9rem;
+    outline: none; transition: border-color var(--trans), box-shadow var(--trans);
+  }
+  #searchInput:focus { border-color: var(--neon); box-shadow: 0 0 0 3px rgba(124,58,237,.2); }
+  #searchInput::placeholder { color: var(--muted); }
+
+  .header-actions { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .btn-icon {
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text); border-radius: 12px; padding: 8px 16px;
+    cursor: pointer; font-family: var(--font-b); font-size: .83rem;
+    display: flex; align-items: center; gap: 6px; text-decoration: none;
+    transition: border-color var(--trans), color var(--trans);
+  }
+  .btn-icon:hover { border-color: var(--neon); color: var(--neon-glow); }
+  .btn-icon.active-nav { border-color: var(--neon); color: var(--neon-glow); background: rgba(124,58,237,.12); }
+
+  /* Admin tag badge in header when in admin */
+  .admin-badge {
+    background: rgba(124,58,237,.2); border: 1px solid rgba(124,58,237,.4);
+    border-radius: 6px; padding: 3px 9px;
+    font-size: .68rem; color: var(--neon-glow); font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase;
+    display: none;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     PAGE: SHOP
+  ═══════════════════════════════════════════════════════════════ */
+
+  /* Hero */
+  .hero {
+    position: relative; padding: 80px 5vw 56px;
+    text-align: center; overflow: hidden;
+  }
+  .hero-glow {
+    position: absolute; width: 640px; height: 640px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(124,58,237,.17) 0%, transparent 70%);
+    top: 50%; left: 50%; transform: translate(-50%,-50%);
+    pointer-events: none; animation: pulse-glow 4s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%,100% { opacity: .6; transform: translate(-50%,-50%) scale(1); }
+    50%      { opacity: 1;  transform: translate(-50%,-50%) scale(1.12); }
+  }
+  .hero h1 {
+    font-family: var(--font-d); font-size: clamp(2.2rem, 6vw, 4.2rem);
+    font-weight: 700; line-height: 1.1; letter-spacing: -.03em; position: relative;
+  }
+  .hero h1 span {
+    background: linear-gradient(135deg, var(--neon-glow), var(--cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .hero p { color: var(--muted); margin-top: 14px; font-size: 1rem; position: relative; }
+
+  /* Categories */
+  .categories-section { padding: 28px 5vw 6px; }
+  .categories-section h2 {
+    font-family: var(--font-d); font-size: .85rem; font-weight: 500;
+    color: var(--muted); text-transform: uppercase; letter-spacing: .12em;
+    margin-bottom: 14px; max-width: 1400px; margin-left: auto; margin-right: auto;
+  }
+  .categories {
+    display: flex; gap: 9px; flex-wrap: wrap;
+    max-width: 1400px; margin: auto;
+  }
+  .cat-btn {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 100px; padding: 7px 17px;
+    color: var(--muted); font-family: var(--font-b); font-size: .83rem;
+    cursor: pointer; transition: all var(--trans);
+  }
+  .cat-btn:hover, .cat-btn.active {
+    background: var(--neon); border-color: var(--neon);
+    color: var(--white); box-shadow: 0 0 16px rgba(124,58,237,.4);
+  }
+
+  /* Products */
+  .products-section { padding: 28px 5vw 80px; max-width: 1400px; margin: auto; }
+  .section-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px;
+  }
+  .section-header h2 { font-family: var(--font-d); font-size: 1.4rem; font-weight: 600; }
+  .results-count { color: var(--muted); font-size: .83rem; }
+
+  #productsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 18px;
+  }
+
+  /* Card */
+  .product-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; cursor: pointer;
+    transition: transform var(--trans), border-color var(--trans), box-shadow var(--trans);
+    position: relative; animation: fadeUp .45s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(22px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .product-card:hover {
+    transform: translateY(-6px) scale(1.025);
+    border-color: var(--neon);
+    box-shadow: 0 8px 32px rgba(124,58,237,.35), 0 0 0 1px rgba(124,58,237,.2);
+  }
+  .card-img-wrap {
+    width: 100%; aspect-ratio: 1/1; background: var(--surface);
+    position: relative; overflow: hidden;
+  }
+  .card-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--trans); }
+  .product-card:hover .card-img-wrap img { transform: scale(1.08); }
+  .card-placeholder {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 3rem;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+  }
+  .card-badge {
+    position: absolute; top: 11px; left: 11px;
+    background: var(--neon); color: #fff;
+    font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+    padding: 3px 9px; border-radius: 100px;
+  }
+  .card-body { padding: 15px; }
+  .card-category { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; color: var(--neon-glow); margin-bottom: 5px; }
+  .card-name { font-family: var(--font-d); font-size: .98rem; font-weight: 600; line-height: 1.3; margin-bottom: 5px; }
+  .card-desc {
+    font-size: .78rem; color: var(--muted);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    margin-bottom: 13px;
+  }
+  .card-footer { display: flex; align-items: center; justify-content: space-between; }
+  .card-price {
+    font-family: var(--font-d); font-size: 1.05rem; font-weight: 700;
+    background: linear-gradient(135deg, var(--neon-glow), var(--cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .card-btn {
+    background: linear-gradient(135deg, var(--neon), #6d28d9);
+    border: none; border-radius: 8px; color: #fff;
+    font-family: var(--font-b); font-size: .78rem;
+    padding: 7px 13px; cursor: pointer;
+    transition: opacity var(--trans), transform var(--trans), box-shadow var(--trans);
+  }
+  .card-btn:hover { opacity: .9; transform: scale(1.05); box-shadow: 0 0 16px rgba(124,58,237,.5); }
+
+  .empty-state {
+    grid-column: 1/-1; text-align: center; padding: 56px 20px; color: var(--muted);
+  }
+  .empty-state svg { margin-bottom: 14px; opacity: .35; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     PRODUCT MODAL
+  ═══════════════════════════════════════════════════════════════ */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(0,0,0,.8); backdrop-filter: blur(12px);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    opacity: 0; pointer-events: none; transition: opacity .3s ease;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border); border-radius: 24px;
+    max-width: 530px; width: 100%; overflow: hidden;
+    transform: translateY(30px) scale(.97);
+    transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+    box-shadow: 0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(124,58,237,.15);
+  }
+  .modal-overlay.open .modal { transform: translateY(0) scale(1); }
+  .modal-img-wrap { width: 100%; aspect-ratio: 16/9; background: var(--surface); position: relative; overflow: hidden; }
+  .modal-img-wrap img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+  .modal-img-placeholder {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 4.5rem; background: linear-gradient(135deg, #1a1a2e, #16213e);
+  }
+  .modal-close {
+    position: absolute; top: 12px; right: 12px;
+    background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 50%; width: 34px; height: 34px; color: #fff;
+    font-size: 1rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background var(--trans); z-index: 2;
+  }
+  .modal-close:hover { background: rgba(124,58,237,.5); }
+  .modal-body { padding: 22px 26px 26px; }
+  .modal-cat { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--neon-glow); margin-bottom: 7px; }
+  .modal-title { font-family: var(--font-d); font-size: 1.45rem; font-weight: 700; margin-bottom: 9px; line-height: 1.2; }
+  .modal-desc { color: var(--muted); font-size: .88rem; line-height: 1.6; margin-bottom: 18px; }
+  .modal-price {
+    font-family: var(--font-d); font-size: 1.7rem; font-weight: 700;
+    background: linear-gradient(135deg, var(--neon-glow), var(--cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 18px; display: block;
+  }
+  .buy-message {
+    background: linear-gradient(135deg, rgba(124,58,237,.1), rgba(6,182,212,.07));
+    border: 1px solid rgba(124,58,237,.28); border-radius: 12px;
+    padding: 14px 16px; font-size: .88rem; line-height: 1.6; color: var(--text);
+  }
+  .buy-message a {
+    color: var(--neon-glow); font-weight: 600; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 5px;
+    border-bottom: 1px solid rgba(168,85,247,.35); padding-bottom: 1px;
+    transition: color var(--trans);
+  }
+  .buy-message a:hover { color: var(--cyan); }
+  .tg-btn {
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    width: 100%; margin-top: 12px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border: none; border-radius: 12px;
+    color: #fff; font-family: var(--font-d); font-size: .95rem; font-weight: 600;
+    padding: 13px; cursor: pointer; text-decoration: none;
+    transition: opacity var(--trans), box-shadow var(--trans), transform var(--trans);
+  }
+  .tg-btn:hover { opacity: .9; box-shadow: 0 0 24px rgba(37,99,235,.45); transform: translateY(-2px); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     FOOTER
+  ═══════════════════════════════════════════════════════════════ */
+  footer {
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 44px 5vw 28px;
+  }
+  .footer-inner {
+    max-width: 1400px; margin: auto;
+    display: grid; grid-template-columns: 1fr auto; gap: 36px; align-items: start;
+  }
+  .footer-brand h3 {
+    font-family: var(--font-d); font-size: 1.5rem; font-weight: 700;
+    background: linear-gradient(135deg, var(--neon-glow), var(--cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 7px;
+  }
+  .footer-brand p { color: var(--muted); font-size: .83rem; line-height: 1.6; }
+  .footer-links { display: flex; flex-direction: column; gap: 8px; }
+  .footer-links a { color: var(--muted); font-size: .83rem; text-decoration: none; cursor: pointer; transition: color var(--trans); }
+  .footer-links a:hover { color: var(--neon-glow); }
+  .footer-bottom {
+    max-width: 1400px; margin: 28px auto 0;
+    padding-top: 18px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: .78rem; color: var(--muted);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     PAGE: ADMIN LOGIN
+  ═══════════════════════════════════════════════════════════════ */
+  #pageLogin {
+    min-height: calc(100vh - 68px);
+    display: none; /* overridden by .page.active */
+    align-items: center; justify-content: center;
+    padding: 40px 20px;
+    background: radial-gradient(ellipse at 50% 0%, rgba(124,58,237,.15) 0%, transparent 55%);
+  }
+  #pageLogin.active { display: flex; }
+
+  .login-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 24px; padding: 46px 42px;
+    width: 100%; max-width: 390px;
+    box-shadow: 0 32px 80px rgba(0,0,0,.5);
+    animation: fadeUp .45s ease;
+  }
+  .login-logo { font-family: var(--font-d); font-size: 1.75rem; font-weight: 700; text-align: center; margin-bottom: 5px; }
+  .login-logo span { background: linear-gradient(135deg, var(--neon-glow), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .login-subtitle { text-align: center; color: var(--muted); font-size: .83rem; margin-bottom: 34px; }
+  .form-group { margin-bottom: 18px; }
+  .form-group label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 7px; letter-spacing: .05em; text-transform: uppercase; }
+  .form-input {
+    width: 100%; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 15px; color: var(--text);
+    font-family: var(--font-b); font-size: .93rem;
+    outline: none; transition: border-color var(--trans), box-shadow var(--trans);
+  }
+  .form-input:focus { border-color: var(--neon); box-shadow: 0 0 0 3px rgba(124,58,237,.2); }
+  .btn-primary {
+    width: 100%;
+    background: linear-gradient(135deg, var(--neon), #6d28d9);
+    border: none; border-radius: 10px;
+    color: #fff; font-family: var(--font-d); font-size: .98rem; font-weight: 600;
+    padding: 13px; cursor: pointer;
+    transition: opacity var(--trans), box-shadow var(--trans), transform var(--trans);
+  }
+  .btn-primary:hover { opacity: .9; box-shadow: 0 0 24px rgba(124,58,237,.45); transform: translateY(-1px); }
+  .btn-primary:active { transform: scale(.98); }
+  .login-error {
+    background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.28);
+    border-radius: 8px; padding: 10px 13px;
+    color: #f87171; font-size: .83rem; text-align: center;
+    margin-bottom: 14px; display: none;
+  }
+  .back-link { display: block; text-align: center; margin-top: 18px; color: var(--muted); font-size: .8rem; cursor: pointer; transition: color var(--trans); }
+  .back-link:hover { color: var(--neon-glow); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     PAGE: ADMIN PANEL
+  ═══════════════════════════════════════════════════════════════ */
+  .admin-content { max-width: 1400px; margin: auto; padding: 32px 5vw 80px; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; margin-bottom: 32px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; }
+  .stat-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 7px; }
+  .stat-val { font-family: var(--font-d); font-size: 1.8rem; font-weight: 700; }
+  .stat-val.neon { background: linear-gradient(135deg, var(--neon-glow), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+  .admin-section-title {
+    font-family: var(--font-d); font-size: 1.15rem; font-weight: 600;
+    margin-bottom: 18px; display: flex; align-items: center; gap: 10px;
+  }
+  .admin-section-title .bar { width: 4px; height: 20px; background: linear-gradient(to bottom, var(--neon), var(--cyan)); border-radius: 2px; display: inline-block; }
+
+  /* Form card */
+  .form-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 26px 26px 30px; margin-bottom: 38px;
+  }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid .span2 { grid-column: 1/-1; }
+  .form-label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .06em; }
+  .form-field {
+    width: 100%; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 11px 13px; color: var(--text);
+    font-family: var(--font-b); font-size: .88rem;
+    outline: none; transition: border-color var(--trans), box-shadow var(--trans);
+  }
+  .form-field:focus { border-color: var(--neon); box-shadow: 0 0 0 3px rgba(124,58,237,.18); }
+  textarea.form-field { resize: vertical; min-height: 88px; }
+
+  .file-upload-area {
+    border: 2px dashed var(--border); border-radius: 12px;
+    padding: 22px; text-align: center; cursor: pointer;
+    transition: border-color var(--trans), background var(--trans); position: relative;
+  }
+  .file-upload-area:hover { border-color: var(--neon); background: rgba(124,58,237,.05); }
+  .file-upload-area input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .file-upload-area p { color: var(--muted); font-size: .83rem; margin-top: 8px; }
+  .file-preview { margin-top: 10px; display: none; }
+  .file-preview img { width: 76px; height: 76px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+
+  .form-actions { display: flex; gap: 11px; margin-top: 20px; justify-content: flex-end; }
+  .btn-save {
+    background: linear-gradient(135deg, var(--neon), #6d28d9);
+    border: none; border-radius: 10px; color: #fff;
+    font-family: var(--font-d); font-size: .88rem; font-weight: 600;
+    padding: 10px 26px; cursor: pointer;
+    transition: opacity var(--trans), box-shadow var(--trans);
+  }
+  .btn-save:hover { opacity: .9; box-shadow: 0 0 18px rgba(124,58,237,.4); }
+  .btn-cancel-form {
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 10px; color: var(--muted);
+    font-family: var(--font-b); font-size: .86rem;
+    padding: 10px 20px; cursor: pointer; transition: all var(--trans);
+  }
+  .btn-cancel-form:hover { border-color: var(--muted); color: var(--text); }
+
+  /* Table */
+  .products-table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .86rem; }
+  thead th {
+    background: var(--surface); color: var(--muted);
+    font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 500;
+    padding: 11px 15px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  thead th:first-child { border-radius: 10px 0 0 0; }
+  thead th:last-child  { border-radius: 0 10px 0 0; }
+  tbody tr { background: var(--card); border-bottom: 1px solid var(--border); transition: background var(--trans); }
+  tbody tr:hover { background: rgba(124,58,237,.06); }
+  tbody td { padding: 13px 15px; vertical-align: middle; }
+
+  .td-thumb {
+    width: 50px; height: 50px; border-radius: 9px; overflow: hidden;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+  }
+  .td-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .td-name { font-weight: 600; }
+  .td-cat { color: var(--neon-glow); font-size: .75rem; margin-top: 3px; }
+  .td-price { font-family: var(--font-d); font-weight: 700; color: var(--neon-glow); }
+  .td-desc-cell { color: var(--muted); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .action-btn {
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 12px;
+    font-family: var(--font-b); font-size: .76rem; cursor: pointer; transition: all var(--trans);
+  }
+  .action-btn.edit  { color: var(--cyan); }
+  .action-btn.edit:hover  { border-color: var(--cyan); background: rgba(6,182,212,.1); }
+  .action-btn.del   { color: var(--red); margin-left: 5px; }
+  .action-btn.del:hover   { border-color: var(--red); background: rgba(239,68,68,.1); }
+  .empty-table { text-align: center; padding: 46px; color: var(--muted); }
+
+  /* Logout button */
+  .btn-logout {
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 13px;
+    color: var(--muted); font-family: var(--font-b); font-size: .8rem;
+    cursor: pointer; transition: all var(--trans);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     CONFIRM MODAL
+  ═══════════════════════════════════════════════════════════════ */
+  .confirm-overlay {
+    position: fixed; inset: 0; z-index: 600;
+    background: rgba(0,0,0,.72); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    opacity: 0; pointer-events: none; transition: opacity .25s;
+  }
+  .confirm-overlay.open { opacity: 1; pointer-events: all; }
+  .confirm-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 34px 30px; max-width: 340px; width: 100%;
+    text-align: center;
+    transform: scale(.95); transition: transform .28s ease;
+  }
+  .confirm-overlay.open .confirm-box { transform: scale(1); }
+  .confirm-box h3 { font-family: var(--font-d); font-size: 1.15rem; margin-bottom: 9px; }
+  .confirm-box p  { color: var(--muted); font-size: .86rem; margin-bottom: 22px; }
+  .confirm-actions { display: flex; gap: 10px; }
+  .btn-cdel {
+    flex: 1; background: var(--red); border: none; border-radius: 10px;
+    color: #fff; font-family: var(--font-d); font-size: .88rem; font-weight: 600;
+    padding: 11px; cursor: pointer; transition: opacity var(--trans);
+  }
+  .btn-cdel:hover { opacity: .85; }
+  .btn-cno {
+    flex: 1; background: transparent; border: 1px solid var(--border);
+    border-radius: 10px; color: var(--muted);
+    font-family: var(--font-b); font-size: .86rem;
+    padding: 11px; cursor: pointer; transition: all var(--trans);
+  }
+  .btn-cno:hover { border-color: var(--muted); color: var(--text); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     TOAST
+  ═══════════════════════════════════════════════════════════════ */
+  .toast {
+    position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--card); border: 1px solid var(--neon);
+    border-radius: 12px; padding: 11px 20px;
+    font-size: .88rem; color: var(--text);
+    box-shadow: 0 4px 24px rgba(0,0,0,.4);
+    z-index: 9999; opacity: 0; transition: all .3s ease; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--green); }
+  .toast.error   { border-color: var(--red); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     RESPONSIVE
+  ═══════════════════════════════════════════════════════════════ */
+  @media (max-width: 640px) {
+    .search-wrap { max-width: unset; }
+    .btn-icon span { display: none; }
+    .footer-inner { grid-template-columns: 1fr; }
+    .footer-bottom { flex-direction: column; gap: 7px; text-align: center; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid .span2 { grid-column: 1; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .modal { margin: 0 8px; }
+  }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SHARED HEADER
+═══════════════════════════════════════════════════════════════ -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo" id="logoBtn">
+      <span class="logo-wave">WAVE</span><span style="color:var(--text)">SHOP</span>
+    </div>
+
+    <!-- Search (hidden on admin pages) -->
+    <div class="search-wrap" id="headerSearch">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input id="searchInput" type="text" placeholder="Пошук товарів…" autocomplete="off" />
+    </div>
+
+    <div class="header-actions">
+      <span class="admin-badge" id="adminBadge">Admin</span>
+
+      <!-- Nav buttons -->
+      <button class="btn-icon" id="navShopBtn" onclick="navigate('shop')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.5 6h13M7 13L5.4 5"/>
+        </svg>
+        <span>Магазин</span>
+      </button>
+
+      <button class="btn-icon" id="navAdminBtn" onclick="navigate('admin')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7"/>
+        </svg>
+        <span>Адмін</span>
+      </button>
+
+      <button class="btn-logout" id="logoutBtn" style="display:none" onclick="doLogout()">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+        Вийти
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE: SHOP
+═══════════════════════════════════════════════════════════════ -->
+<div id="pageShop" class="page active">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-glow"></div>
+    <h1>Знайди своє<br><span>нове обладнання</span></h1>
+    <p>Найкращі товари за найкращими цінами — тільки у WAVESHOP</p>
+  </section>
+
+  <!-- Categories -->
+  <section class="categories-section">
+    <div style="max-width:1400px;margin:auto">
+      <h2>Категорії</h2>
+      <div class="categories" id="categoriesBar"></div>
+    </div>
+  </section>
+
+  <!-- Products -->
+  <section class="products-section">
+    <div class="section-header">
+      <h2>Каталог товарів</h2>
+      <span class="results-count" id="resultsCount">0 товарів</span>
+    </div>
+    <div id="productsGrid"></div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <h3>WAVESHOP</h3>
+        <p>Офіційний онлайн-магазин.<br>Якісні товари з доставкою по всій Україні.</p>
+      </div>
+      <div class="footer-links">
+        <a href="https://t.me/waveshop_helper" target="_blank" rel="noopener">📩 Telegram підтримка</a>
+        <a onclick="navigate('admin')">⚙️ Адмін-панель</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2025 WAVESHOP. Всі права захищено.</span>
+      <span style="color:var(--neon-glow)">Зроблено з ♥</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PRODUCT MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-img-wrap" style="position:relative">
+      <div class="modal-img-placeholder" id="modalImgPh">📦</div>
+      <img id="modalImg" src="" alt="" style="display:none" />
+      <button class="modal-close" id="modalClose" aria-label="Закрити">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-cat"  id="modalCat"></div>
+      <h2 class="modal-title" id="modalTitle"></h2>
+      <p class="modal-desc"   id="modalDesc"></p>
+      <span class="modal-price" id="modalPrice"></span>
+      <div class="buy-message">
+        🛒 Якщо ви бажаєте купити товар, перейдіть за посиланням
+        <a href="https://t.me/waveshop_helper" target="_blank" rel="noopener">
+          <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.869 4.326-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.83.941z"/></svg>
+          @waveshop_helper
+        </a>
+      </div>
+      <a href="https://t.me/waveshop_helper" target="_blank" rel="noopener" class="tg-btn">
+        <svg width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.869 4.326-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.83.941z"/></svg>
+        Написати у Telegram
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE: ADMIN LOGIN
+═══════════════════════════════════════════════════════════════ -->
+<div id="pageLogin" class="page">
+  <div class="login-box">
+    <div class="login-logo"><span>WAVE</span>SHOP</div>
+    <p class="login-subtitle">Адміністративна панель</p>
+    <div class="login-error" id="loginError">Невірний пароль. Спробуйте ще раз.</div>
+    <div class="form-group">
+      <label for="adminPass">Пароль</label>
+      <input type="password" id="adminPass" class="form-input" placeholder="Введіть пароль…" autocomplete="current-password" />
+    </div>
+    <button class="btn-primary" id="loginBtn">Увійти в адмін-панель</button>
+    <span class="back-link" onclick="navigate('shop')">← Повернутись до магазину</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE: ADMIN PANEL
+═══════════════════════════════════════════════════════════════ -->
+<div id="pageAdmin" class="page">
+  <div class="admin-content">
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Товарів у магазині</div>
+        <div class="stat-val neon" id="statTotal">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Категорій</div>
+        <div class="stat-val neon" id="statCats">0</div>
+      </div>
+    </div>
+
+    <!-- Add/Edit Form -->
+    <div id="aFormSection">
+      <div class="admin-section-title"><span class="bar"></span> <span id="formTitle">Додати товар</span></div>
+      <div class="form-card">
+        <input type="hidden" id="editId" />
+        <div class="form-grid">
+          <div>
+            <label class="form-label" for="fName">Назва товару *</label>
+            <input type="text" id="fName" class="form-field" placeholder="напр. Sony WH-1000XM5" />
+          </div>
+          <div>
+            <label class="form-label" for="fPrice">Ціна *</label>
+            <input type="text" id="fPrice" class="form-field" placeholder="напр. 8 999 ₴" />
+          </div>
+          <div>
+            <label class="form-label" for="fCategory">Категорія</label>
+            <input type="text" id="fCategory" class="form-field" placeholder="напр. Навушники" list="catList" />
+            <datalist id="catList"></datalist>
+          </div>
+          <div>
+            <label class="form-label" for="fEmoji">Емодзі (замість фото)</label>
+            <input type="text" id="fEmoji" class="form-field" placeholder="напр. 🎧" maxlength="4" />
+          </div>
+          <div class="span2">
+            <label class="form-label" for="fDesc">Опис товару</label>
+            <textarea id="fDesc" class="form-field" placeholder="Коротко опишіть товар…"></textarea>
+          </div>
+          <div class="span2">
+            <label class="form-label">Фото товару</label>
+            <div class="file-upload-area" id="uploadArea">
+              <input type="file" id="fImg" accept="image/*" />
+              <svg width="26" height="26" fill="none" stroke="var(--muted)" stroke-width="1.5" viewBox="0 0 24 24">
+                <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+              </svg>
+              <p>Натисніть або перетягніть фото сюди<br><small style="color:var(--border);font-size:.73rem">PNG, JPG, WEBP до 5 МБ</small></p>
+              <div class="file-preview" id="filePreview"></div>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-cancel-form" id="cancelEdit" style="display:none">Скасувати</button>
+          <button class="btn-save" id="saveBtn">💾 Зберегти товар</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="admin-section-title"><span class="bar"></span> Список товарів</div>
+    <div class="products-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Фото</th>
+            <th>Назва / Категорія</th>
+            <th>Ціна</th>
+            <th>Опис</th>
+            <th>Дії</th>
+          </tr>
+        </thead>
+        <tbody id="adminTbody"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     CONFIRM DELETE MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <h3>Видалити товар?</h3>
+    <p>Цю дію неможливо скасувати.<br>Товар буде видалено назавжди.</p>
+    <div class="confirm-actions">
+      <button class="btn-cno"  id="confirmNo">Скасувати</button>
+      <button class="btn-cdel" id="confirmYes">Видалити</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════════ -->
+<script>
+/* ────────────────────────────────────────────────────────────────
+   CONSTANTS & HELPERS
+──────────────────────────────────────────────────────────────── */
+const ADMIN_PASS = 'novosad2134f@';
+const STORE_KEY  = 'waveshop_products';
+const $ = id => document.getElementById(id);
+
+function showToast(msg, type = 'success', dur = 2800) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), dur);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DATA LAYER
+──────────────────────────────────────────────────────────────── */
+function getProducts() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+  catch { return []; }
+}
+function setProducts(arr) { localStorage.setItem(STORE_KEY, JSON.stringify(arr)); }
+function nextId(arr)      { return arr.length ? Math.max(...arr.map(p => p.id)) + 1 : 1; }
+
+/* Seed demo data on first open */
+(function seedDemo() {
+  if (getProducts().length) return;
+  setProducts([
+    { id:1, name:'Sony WH-1000XM5',      category:'Навушники',      price:'8 999 ₴', emoji:'🎧', desc:'Преміальні бездротові навушники з найкращим шумопоглинанням на ринку. 30 годин автономної роботи.', img:'' },
+    { id:2, name:'Apple AirPods Pro 2',  category:'Навушники',      price:'7 499 ₴', emoji:'🎵', desc:'Активне шумопоглинання нового покоління, персоналізований просторовий звук і зручна посадка.',   img:'' },
+    { id:3, name:'Samsung Galaxy Watch 6',category:'Смарт-годинники',price:'9 200 ₴', emoji:'⌚', desc:'Стильний смарт-годинник із моніторингом здоров\'я, GPS та тривалою роботою від акумулятора.',    img:'' },
+    { id:4, name:'Logitech MX Master 3S', category:'Периферія',      price:'3 800 ₴', emoji:'🖱️',desc:'Ергономічна бездротова миша для продуктивної роботи з тихими кнопками та 8К DPI сенсором.',      img:'' },
+    { id:5, name:'Keychron Q3 Pro',       category:'Периферія',      price:'5 600 ₴', emoji:'⌨️',desc:'Механічна клавіатура тенклес-формату з безпровідним підключенням і алюмінієвим корпусом.',        img:'' },
+    { id:6, name:'Elgato Stream Deck MK.2',category:'Стрімінг',     price:'5 100 ₴', emoji:'🎮', desc:'Консоль для стрімерів і креаторів з 15 кастомізованими LCD-кнопками для автоматизації.',          img:'' },
+    { id:7, name:'DJI Mic 2',             category:'Аудіо',          price:'6 700 ₴', emoji:'🎙️',desc:'Компактний бездротовий мікрофон із внутрішньою пам\'яттю 8 ГБ і 32-бітним float записом.',        img:'' },
+    { id:8, name:'Anker GaN Prime 240W',  category:'Зарядки',        price:'2 400 ₴', emoji:'⚡', desc:'Потужний GaN-зарядний пристрій на 4 порти для одночасної зарядки ноутбука, телефонів та планшету.',img:'' },
+  ]);
+})();
+
+/* ────────────────────────────────────────────────────────────────
+   SPA NAVIGATION
+──────────────────────────────────────────────────────────────── */
+// Pages: 'shop' | 'login' | 'admin'
+let currentPage = 'shop';
+
+function navigate(page) {
+  // Admin requires auth
+  if (page === 'admin' && !isLoggedIn()) { page = 'login'; }
+
+  currentPage = page;
+
+  // Toggle page visibility
+  ['pageShop','pageLogin','pageAdmin'].forEach(id => $( id).classList.remove('active'));
+  const map = { shop:'pageShop', login:'pageLogin', admin:'pageAdmin' };
+  $(map[page]).classList.add('active');
+
+  // Header UI
+  const isAdmin = page === 'admin';
+  const isLogin = page === 'login';
+
+  $('headerSearch').style.display  = (page === 'shop') ? 'block' : 'none';
+  $('adminBadge').style.display    = isAdmin ? 'inline-flex' : 'none';
+  $('logoutBtn').style.display     = isAdmin ? 'flex' : 'none';
+  $('navAdminBtn').style.display   = isAdmin ? 'none' : 'flex';
+
+  // Highlight active nav
+  $('navShopBtn').classList.toggle('active-nav',  page === 'shop');
+
+  // Render correct content
+  if (page === 'shop')  { renderCategories(getProducts()); renderProducts(); }
+  if (page === 'admin') renderAdmin();
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   AUTH
+──────────────────────────────────────────────────────────────── */
+function isLoggedIn()  { return sessionStorage.getItem('ws_admin') === '1'; }
+
+function doLogin() {
+  const pass = $('adminPass').value;
+  if (pass === ADMIN_PASS) {
+    sessionStorage.setItem('ws_admin', '1');
+    $('loginError').style.display = 'none';
+    $('adminPass').value = '';
+    navigate('admin');
+  } else {
+    $('loginError').style.display = 'block';
+    $('adminPass').style.borderColor = 'var(--red)';
+    setTimeout(() => { $('adminPass').style.borderColor = ''; }, 1400);
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('ws_admin');
+  navigate('shop');
+  showToast('Ви вийшли з адмін-панелі');
+}
+
+$('loginBtn').addEventListener('click', doLogin);
+$('adminPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+$('logoBtn').addEventListener('click', () => navigate('shop'));
+
+/* ────────────────────────────────────────────────────────────────
+   SHOP — RENDER CATEGORIES
+──────────────────────────────────────────────────────────────── */
+let currentCat  = 'all';
+let searchQuery = '';
+
+function renderCategories(products) {
+  const cats = ['all', ...new Set(products.map(p => p.category).filter(Boolean))];
+  const bar = $('categoriesBar');
+  bar.innerHTML = cats.map(c => `
+    <button class="cat-btn ${c === currentCat ? 'active' : ''}" data-cat="${c}">
+      ${c === 'all' ? 'Усі' : c}
+    </button>
+  `).join('');
+  bar.querySelectorAll('.cat-btn').forEach(btn => btn.addEventListener('click', () => {
+    currentCat = btn.dataset.cat;
+    renderCategories(getProducts());
+    renderProducts();
+  }));
+}
+
+/* ────────────────────────────────────────────────────────────────
+   SHOP — RENDER PRODUCTS
+──────────────────────────────────────────────────────────────── */
+function renderProducts() {
+  const all = getProducts();
+  const filtered = all.filter(p => {
+    const matchCat = currentCat === 'all' || p.category === currentCat;
+    const q = searchQuery.toLowerCase();
+    const matchQ = !q || p.name.toLowerCase().includes(q) ||
+                   (p.desc||'').toLowerCase().includes(q) ||
+                   (p.category||'').toLowerCase().includes(q);
+    return matchCat && matchQ;
+  });
+
+  $('resultsCount').textContent = `${filtered.length} товар${pluralUA(filtered.length)}`;
+
+  const grid = $('productsGrid');
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-state">
+      <svg width="46" height="46" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/>
+      </svg>
+      <p>Товарів не знайдено</p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map((p, i) => `
+    <div class="product-card" data-id="${p.id}" style="animation-delay:${i * 0.055}s">
+      <div class="card-img-wrap">
+        ${p.img
+          ? `<img src="${p.img}" alt="${p.name}" loading="lazy" />`
+          : `<div class="card-placeholder">${p.emoji || '📦'}</div>`}
+        ${i < 3 ? '<span class="card-badge">Хіт</span>' : ''}
+      </div>
+      <div class="card-body">
+        <div class="card-category">${p.category || 'Загальне'}</div>
+        <div class="card-name">${p.name}</div>
+        <div class="card-desc">${p.desc || ''}</div>
+        <div class="card-footer">
+          <span class="card-price">${p.price}</span>
+          <button class="card-btn">Купити</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.product-card').forEach(card =>
+    card.addEventListener('click', () => openProductModal(+card.dataset.id))
+  );
+}
+
+function pluralUA(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return '';
+  if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'и';
+  return 'ів';
+}
+
+/* ────────────────────────────────────────────────────────────────
+   PRODUCT MODAL
+──────────────────────────────────────────────────────────────── */
+function openProductModal(id) {
+  const p = getProducts().find(x => x.id === id);
+  if (!p) return;
+  $('modalCat').textContent   = p.category || '';
+  $('modalTitle').textContent = p.name;
+  $('modalDesc').textContent  = p.desc || 'Опис відсутній.';
+  $('modalPrice').textContent = p.price;
+  const img = $('modalImg');
+  const ph  = $('modalImgPh');
+  if (p.img) {
+    img.src = p.img; img.alt = p.name;
+    img.style.display = 'block'; ph.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    ph.style.display  = 'flex'; ph.textContent = p.emoji || '📦';
+  }
+  $('modalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  $('modalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+$('modalClose').addEventListener('click', closeModal);
+$('modalOverlay').addEventListener('click', e => { if (e.target === $('modalOverlay')) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); } });
+
+/* Search */
+$('searchInput').addEventListener('input', e => { searchQuery = e.target.value; renderProducts(); });
+
+/* ────────────────────────────────────────────────────────────────
+   ADMIN — IMAGE UPLOAD
+──────────────────────────────────────────────────────────────── */
+let uploadedImageData = null;
+
+$('fImg').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('Файл занадто великий (макс. 5 МБ)', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    uploadedImageData = e.target.result;
+    const prev = $('filePreview');
+    prev.innerHTML = `<img src="${uploadedImageData}" alt="preview" />`;
+    prev.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+});
+
+/* ────────────────────────────────────────────────────────────────
+   ADMIN — FORM SAVE / RESET
+──────────────────────────────────────────────────────────────── */
+function resetForm() {
+  $('editId').value = '';
+  ['fName','fPrice','fCategory','fEmoji','fDesc'].forEach(id => $(id).value = '');
+  $('fImg').value = '';
+  $('filePreview').innerHTML = ''; $('filePreview').style.display = 'none';
+  uploadedImageData = null;
+  $('cancelEdit').style.display = 'none';
+  $('formTitle').textContent = 'Додати товар';
+  $('saveBtn').textContent   = '💾 Зберегти товар';
+}
+
+$('cancelEdit').addEventListener('click', resetForm);
+
+$('saveBtn').addEventListener('click', () => {
+  const name  = $('fName').value.trim();
+  const price = $('fPrice').value.trim();
+  if (!name || !price) { showToast('Введіть назву та ціну!', 'error'); return; }
+
+  const products = getProducts();
+  const editId   = +$('editId').value;
+
+  const payload = {
+    id:       editId || nextId(products),
+    name, price,
+    category: $('fCategory').value.trim() || 'Загальне',
+    emoji:    $('fEmoji').value.trim() || '📦',
+    desc:     $('fDesc').value.trim(),
+    img:      uploadedImageData || (editId ? (products.find(p => p.id === editId)?.img || '') : ''),
+  };
+
+  if (editId) {
+    const idx = products.findIndex(p => p.id === editId);
+    if (idx !== -1) products[idx] = payload;
+    showToast('✅ Товар оновлено!');
+  } else {
+    products.push(payload);
+    showToast('✅ Товар додано!');
+  }
+
+  setProducts(products);
+  renderAdmin();
+  resetForm();
+});
+
+/* ────────────────────────────────────────────────────────────────
+   ADMIN — EDIT PRODUCT
+──────────────────────────────────────────────────────────────── */
+function editProduct(id) {
+  const p = getProducts().find(x => x.id === id);
+  if (!p) return;
+  $('editId').value    = p.id;
+  $('fName').value     = p.name;
+  $('fPrice').value    = p.price;
+  $('fCategory').value = p.category;
+  $('fEmoji').value    = p.emoji || '';
+  $('fDesc').value     = p.desc  || '';
+  if (p.img) {
+    uploadedImageData = p.img;
+    $('filePreview').innerHTML = `<img src="${p.img}" alt="preview" />`;
+    $('filePreview').style.display = 'block';
+  } else {
+    uploadedImageData = null;
+    $('filePreview').innerHTML = ''; $('filePreview').style.display = 'none';
+  }
+  $('cancelEdit').style.display = 'inline-flex';
+  $('formTitle').textContent    = 'Редагувати товар';
+  $('saveBtn').textContent      = '💾 Оновити товар';
+  $('aFormSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   ADMIN — DELETE CONFIRM
+──────────────────────────────────────────────────────────────── */
+let pendingDeleteId = null;
+
+function confirmDelete(id) {
+  pendingDeleteId = id;
+  $('confirmOverlay').classList.add('open');
+}
+$('confirmNo').addEventListener('click', () => {
+  $('confirmOverlay').classList.remove('open');
+  pendingDeleteId = null;
+});
+$('confirmYes').addEventListener('click', () => {
+  if (pendingDeleteId !== null) {
+    setProducts(getProducts().filter(p => p.id !== pendingDeleteId));
+    renderAdmin();
+    showToast('🗑️ Товар видалено', 'error');
+  }
+  $('confirmOverlay').classList.remove('open');
+  pendingDeleteId = null;
+});
+
+/* ────────────────────────────────────────────────────────────────
+   ADMIN — RENDER TABLE
+──────────────────────────────────────────────────────────────── */
+function renderAdmin() {
+  const products = getProducts();
+  $('statTotal').textContent = products.length;
+  $('statCats').textContent  = new Set(products.map(p => p.category)).size;
+
+  // Datalist for autocomplete
+  $('catList').innerHTML = [...new Set(products.map(p => p.category).filter(Boolean))]
+    .map(c => `<option value="${c}"></option>`).join('');
+
+  const tbody = $('adminTbody');
+  if (!products.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-table">Товарів ще немає — додайте перший!</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = products.map(p => `
+    <tr>
+      <td><div class="td-thumb">${p.img ? `<img src="${p.img}" alt="${p.name}" />` : (p.emoji || '📦')}</div></td>
+      <td><div class="td-name">${p.name}</div><div class="td-cat">${p.category}</div></td>
+      <td class="td-price">${p.price}</td>
+      <td class="td-desc-cell">${p.desc || '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="action-btn edit" onclick="editProduct(${p.id})">✏️ Ред.</button>
+        <button class="action-btn del"  onclick="confirmDelete(${p.id})">🗑️ Вид.</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ────────────────────────────────────────────────────────────────
+   INIT
+──────────────────────────────────────────────────────────────── */
+navigate('shop');
+
+// Sync across browser tabs
+window.addEventListener('storage', () => {
+  if (currentPage === 'shop') { renderCategories(getProducts()); renderProducts(); }
+  if (currentPage === 'admin' && isLoggedIn()) renderAdmin();
+});
+</script>
+</body>
+</html>
